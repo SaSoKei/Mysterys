@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secchi-Scheiben Simulation</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #e0f2f7; /* Hellerer Hintergrund */
+            margin: 0;
+            overflow: hidden; /* Verhindert Scrollbalken, wenn nicht nötig */
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .main-content-wrapper {
+            display: flex; /* Haupt-Container für See und Seitenbereich */
+            justify-content: center;
+            align-items: flex-start; /* Oben ausrichten */
+            width: 95%;
+            max-width: 1200px; /* Mehr Platz für nebeneinanderliegende Elemente */
+            margin-top: 20px;
+        }
+
+        .simulation-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 60%; /* Nimmt 60% der Breite des Wrappers ein */
+            margin-right: 30px; /* Abstand zum rechten Bereich */
+        }
+
+        .simulation-container {
+            width: 100%; /* Füllt die Breite der simulation-area */
+            max-width: 600px;
+            height: 400px; /* Höhe des Seeabschnitts */
+            background: linear-gradient(to bottom, #87ceeb 0%, #4682b4 70%, #215c8a 100%); /* Realistischerer Wasserverlauf */
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #3498db;
+            position: relative;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.3); /* Tieferen Effekt */
+            margin-bottom: 30px; /* Abstand zum Slider-Bereich */
+        }
+
+        .secchi-disk {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%; /* Macht die Scheibe wirklich rund */
+            overflow: hidden; /* Für die schwarz-weißen Sektoren */
+            box-shadow: 0 0 5px rgba(0,0,0,0.5); /* Leichter Schatten für 3D-Effekt */
+            transition: top 0.1s linear, opacity 0.1s linear;
+            top: 0; /* Startposition oben */
+            display: flex; /* Für die Sektoren */
+            flex-wrap: wrap; /* Damit die Sektoren umbrechen */
+        }
+
+        .secchi-disk div {
+            width: 50%;
+            height: 50%;
+            background-color: white; /* Standardfarbe */
+        }
+        .secchi-disk div:nth-child(2) { background-color: black; }
+        .secchi-disk div:nth-child(3) { background-color: black; }
+        .secchi-disk div:nth-child(4) { background-color: white; }
+
+        .controls-container {
+            display: flex;
+            flex-direction: column; /* Maßband über Slider */
+            align-items: center; /* Horizontal zentrieren */
+            width: 100%; /* Füllt die Breite der simulation-area */
+            max-width: 600px;
+        }
+
+        .measure-tape {
+            height: 40px; /* Höhe des horizontalen Maßbands */
+            width: 100%; /* Passt sich der Breite des Sliders an */
+            background-color: #f0f0f0;
+            border: 1px solid #999;
+            position: relative;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+            margin-bottom: 10px; /* Abstand zum Schieberegler */
+        }
+
+        .measure-tape .label {
+            position: absolute;
+            top: 50%; /* Vertikal zentriert */
+            transform: translateY(-50%);
+            font-size: 11px;
+            color: #333;
+            white-space: nowrap;
+            z-index: 1; /* Über den Ticks */
+            font-weight: bold;
+        }
+
+        .measure-tape .tick {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 1px; /* Breite des Ticks */
+            background-color: #555;
+            z-index: 0; /* Unter den Labels */
+        }
+        .measure-tape .long-tick {
+            width: 2px;
+            height: 100%;
+        }
+        .measure-tape .medium-tick {
+            width: 1px;
+            height: 70%;
+            top: 15%; /* Vertikal mittig */
+        }
+        .measure-tape .short-tick {
+            width: 1px;
+            height: 40%;
+            top: 30%; /* Vertikal mittig */
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%; /* Nimmt verfügbare Breite ein */
+            height: 10px; /* Schmalerer Slider */
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.8;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+            border-radius: 5px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .depth-display {
+            margin-top: 15px;
+            font-size: 1.4em;
+            color: #2c3e50;
+            font-weight: bold;
+            width: 150px;
+            text-align: center;
+        }
+
+        /* Die Info-Box ist jetzt direkt unter info-and-task-area */
+        .info-and-task-area {
+            display: flex;
+            flex-direction: column; /* Stellt sicher, dass die Boxen untereinander sind, falls mehr als eine */
+            width: 40%; /* Nimmt 40% der Breite des Wrappers ein */
+            margin-left: 30px; /* Abstand zum linken Bereich */
+        }
+
+        .info-box {
+            background-color: #e0f2f7;
+            border: 1px solid #a7d9ed;
+            padding: 15px;
+            border-radius: 8px;
+            width: 100%; /* Füllt die Breite des Elterncontainers */
+            text-align: left; /* Text linksbündig */
+            color: #34495e;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Secchi-Scheiben Simulation</h1>
+
+    <div class="main-content-wrapper">
+        <div class="simulation-area">
+            <div class="simulation-container">
+                <div class="secchi-disk" id="secchiDisk">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+
+            <div class="controls-container">
+                <div class="measure-tape" id="measureTape"></div>
+                <input type="range" id="depthSlider" min="0" max="100" value="0">
+            </div>
+            <div class="depth-display" id="depthDisplay">0 cm</div>
+        </div>
+
+        <div class="info-and-task-area">
+            <div class="info-box" id="infoBox">
+                <p>Mit der Secchi-Scheibe kann man die Sichttiefe von Wasser bestimmen. Wenn man bei 100 cm Wassertiefe die Scheibe nicht mehr sehen kann, ist das ein Zeichen für zu viele Cyanobakterien (Blaualgen). Diese Methode ist nützlich, weil man sie ohne großen Aufwand anwenden kann.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const secchiDisk = document.getElementById('secchiDisk');
+        const depthSlider = document.getElementById('depthSlider');
+        const simulationContainer = document.querySelector('.simulation-container');
+        const depthDisplay = document.getElementById('depthDisplay');
+        const measureTape = document.getElementById('measureTape');
+
+        const containerHeight = simulationContainer.offsetHeight; // Höhe des Wasserbereichs
+
+        // Maßband erstellen (horizontal)
+        function createMeasureTapeTicks() {
+            measureTape.innerHTML = ''; // Vorherige Ticks entfernen
+            const tapeWidth = measureTape.offsetWidth; // Breite des Maßbands
+            const maxCmDisplay = 200; // Maximale Tiefe, die das Maßband anzeigt
+            const cmPerPx = maxCmDisplay / tapeWidth; // Zentimeter pro Pixel auf dem Maßband
+
+            // Ticks und Labels von links nach rechts generieren
+            for (let i = 0; i <= maxCmDisplay; i += 10) {
+                // Position berechnen, relative Position auf dem Maßband
+                const tickPositionFromLeft = (i / maxCmDisplay) * tapeWidth;
+
+                if (i % 50 === 0) { // Lange Ticks für 50er Schritte
+                    const tick = document.createElement('span');
+                    tick.className = 'tick long-tick';
+                    tick.style.left = `${tickPositionFromLeft}px`;
+                    measureTape.appendChild(tick);
+
+                    const label = document.createElement('span');
+                    label.className = 'label';
+                    label.innerText = `${i} cm`;
+                    label.style.left = `${tickPositionFromLeft}px`;
+                    label.style.transform = `translate(-50%, -50%)`;
+                    measureTape.appendChild(label);
+                } else if (i % 20 === 0) { // Mittlere Ticks für 20er Schritte
+                    const tick = document.createElement('span');
+                    tick.className = 'tick medium-tick';
+                    tick.style.left = `${tickPositionFromLeft}px`;
+                    measureTape.appendChild(tick);
+                } else if (i % 10 === 0) { // Kurze Ticks für 10er Schritte
+                    const tick = document.createElement('span');
+                    tick.className = 'tick short-tick';
+                    tick.style.left = `${tickPositionFromLeft}px`;
+                    measureTape.appendChild(tick);
+                }
+            }
+        }
+
+        const resizeObserver = new ResizeObserver(() => {
+            createMeasureTapeTicks();
+        });
+        resizeObserver.observe(measureTape);
+
+        depthSlider.addEventListener('input', () => {
+            const depthPercentage = depthSlider.value; // Wert von 0 (links) bis 100 (rechts)
+            const maxDepthCm = 200; // Maximale Tiefe in cm für die Anzeige
+            const currentDepthCm = (depthPercentage / 100) * maxDepthCm;
+
+            // Secchi-Scheibe bewegen
+            const diskHeight = secchiDisk.offsetHeight;
+            const maxDiskPosition = containerHeight - diskHeight;
+            const newTop = (depthPercentage / 100) * maxDiskPosition;
+            secchiDisk.style.top = `${newTop}px`;
+
+            // Opazität basierend auf der Tiefe anpassen (verschwindet bei ca. 60 cm)
+            let opacity;
+            const fadingStartCm = 20; // Beginn des Verblassens
+            const fadingEndCm = 65;   // Ende des Verblassens (praktisch unsichtbar)
+
+            if (currentDepthCm <= fadingStartCm) {
+                opacity = 1; // Volle Sichtbarkeit
+            } else if (currentDepthCm < fadingEndCm) {
+                opacity = 1 - ((currentDepthCm - fadingStartCm) / (fadingEndCm - fadingStartCm));
+            } else {
+                opacity = 0; // Komplett unsichtbar
+            }
+            opacity = Math.max(0, Math.min(1, opacity));
+            secchiDisk.style.opacity = opacity;
+
+
+            // Tiefe anzeigen
+            depthDisplay.innerText = `${Math.round(currentDepthCm)} cm`;
+        });
+
+        // Initialisierung beim Laden der Seite
+        depthSlider.dispatchEvent(new Event('input'));
+    </script>
+</body>
+</html>
